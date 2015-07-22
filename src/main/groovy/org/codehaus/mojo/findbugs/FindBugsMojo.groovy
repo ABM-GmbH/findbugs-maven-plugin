@@ -496,6 +496,15 @@ class FindBugsMojo extends AbstractMavenReport {
      */
     @Parameter(property = "findbugs.skipEmptyReport", defaultValue = "false")
     boolean skipEmptyReport
+    
+    /**
+     * Set the path of the user preferences file to use.
+     * Will try to read the path as a resource before treating it as a local path.
+     *
+     * @since 3.0.2
+     */
+    @Parameter(property = "findbugs.userPreferences.location")
+    String configLocation
 
 
     int bugCount
@@ -820,6 +829,14 @@ class FindBugsMojo extends AbstractMavenReport {
 
         args << getEffortParameter()
         args << getThresholdParameter()
+        
+        if(configLocation) {
+            log.debug(" Adding User Preferences File -> " + configLocation)
+            File configFile = getResourceFile(configLocation.trim())
+            
+            args << "-userPrefs"
+            args << replaceConfigPrefixes(configFile).getAbsolutePath()
+        }
 
         if (debug) {
             log.debug("progress on")
@@ -1349,6 +1366,24 @@ class FindBugsMojo extends AbstractMavenReport {
         }
 
         return outputResourceFile
+    }
+    
+    /**
+     * Removes prefixes from entries in FindBugs Eclipse configuration file.
+     * @param configFile FindBugs configuration file
+     * @return A new temporary file containing the configuration without the prefixes
+     */
+    protected File replaceConfigPrefixes(File configFile) {
+             
+        File result = File.createTempFile(configFile.name ,".epf", findbugsXmlOutputDirectory)
+        
+        ArrayList replacedLines = new ArrayList<String>()
+        configFile.eachLine { line -> replacedLines.add(line.replace("/instance/edu.umd.cs.findbugs.plugin.eclipse/", "")) }
+        PrintWriter writer = new PrintWriter(result)
+        replacedLines.each { line -> writer.println(line) }
+        writer.close()
+        
+        return result
     }
 
 }
